@@ -1,7 +1,3 @@
-package org.itxtech.mcl.component;
-
-import java.io.File;
-
 /*
  *
  * Mirai Console Loader
@@ -25,6 +21,24 @@ import java.io.File;
  * @website https://github.com/iTXTech/mirai-console-loader
  *
  */
-public interface Downloader {
-    void download(String url, File file, DownloadObserver observer);
+
+importPackage(java.lang);
+importPackage(org.itxtech.mcl.component);
+
+if (System.getProperty("java.vm.vendor").contains("Oracle")) {
+    let found = false;
+    let pkgs = loader.config.packages;
+    for (let i in pkgs) {
+        let pkg = pkgs[i];
+        if (pkg.id.equals("org.bouncycastle:bcprov-jdk15on")) {
+            found = true;
+            break;
+        }
+    }
+    if (!found) {
+        let p = new Config.Package("org.bouncycastle:bcprov-jdk15on", "stable");
+        p.type = Config.Package.TYPE_CORE;
+        loader.config.packages.add(0, p);
+        logger.info("OracleJDK is detected. MCL will download BouncyCastle automatically.");
+    }
 }

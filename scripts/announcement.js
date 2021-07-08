@@ -1,7 +1,3 @@
-package org.itxtech.mcl.component;
-
-import java.io.File;
-
 /*
  *
  * Mirai Console Loader
@@ -25,6 +21,14 @@ import java.io.File;
  * @website https://github.com/iTXTech/mirai-console-loader
  *
  */
-public interface Downloader {
-    void download(String url, File file, DownloadObserver observer);
+
+phase.load = () => {
+    logger.info("Fetching Mirai Console Loader Announcement...");
+    try {
+        let pkg = loader.repo.fetchPackage("org.itxtech:mcl");
+        logger.info("Mirai Console Loader Announcement:");
+        logger.println(pkg.announcement);
+    } catch (e) {
+        logger.error("Failed to fetch announcement.");
+    }
 }

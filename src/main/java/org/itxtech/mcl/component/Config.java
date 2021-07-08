@@ -5,11 +5,13 @@ import com.google.gson.GsonBuilder;
 import com.google.gson.annotations.SerializedName;
 import com.google.gson.reflect.TypeToken;
 import com.google.gson.stream.JsonReader;
+import org.itxtech.mcl.Loader;
 
 import java.io.File;
 import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.IOException;
+import java.nio.file.Files;
 import java.util.ArrayList;
 import java.util.HashMap;
 
@@ -17,7 +19,7 @@ import java.util.HashMap;
  *
  * Mirai Console Loader
  *
- * Copyright (C) 2020 iTX Technologies
+ * Copyright (C) 2020-2021 iTX Technologies
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as
@@ -42,11 +44,13 @@ public class Config {
     @SerializedName("mirai_repo")
     public String miraiRepo = "https://gitee.com/peratx/mirai-repo/raw/master";
     @SerializedName("maven_repo")
-    public String mavenRepo = "https://maven.aliyun.com/repository/public";
+    public ArrayList<String> mavenRepo = new ArrayList<>() {{
+        add("https://maven.aliyun.com/repository/public");
+    }};
     public ArrayList<Package> packages = new ArrayList<>() {{
-        add(new Package("net.mamoe:mirai-console", "nightly"));
-        add(new Package("net.mamoe:mirai-console-terminal", "nightly"));
-        add(new Package("net.mamoe:mirai-core-all", "stable"));
+        add(new Package("net.mamoe:mirai-console", "beta"));
+        add(new Package("net.mamoe:mirai-console-terminal", "beta"));
+        add(new Package("net.mamoe:mirai-core-all", "beta"));
     }};
     @SerializedName("disabled_scripts")
     public ArrayList<String> disabledScripts = new ArrayList<>();
@@ -63,7 +67,17 @@ public class Config {
             if (conf != null) {
                 return conf;
             }
-        } catch (Exception ignored) {
+        } catch (Exception e) {
+            if (file.isFile() && file.exists()) {
+                Loader.getInstance().logger.logException(e);
+                var bak = new File(file.getAbsolutePath() + "." + System.currentTimeMillis() + ".bak");
+                try {
+                    Files.copy(file.toPath(), bak.toPath());
+                } catch (Exception ee) {
+                    Loader.getInstance().logger.logException(ee);
+                }
+                Loader.getInstance().logger.error("Invalid configuration file. It has been renamed to " + bak.getAbsolutePath());
+            }
         }
         return new Config();
     }
@@ -103,6 +117,10 @@ public class Config {
 
         public String getBasename() {
             return getName() + "-" + version;
+        }
+
+        public File getJarFile() {
+            return new File(new File(type), getBasename() + ".jar");
         }
     }
 }

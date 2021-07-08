@@ -20,7 +20,7 @@ import java.util.Map;
  *
  * Mirai Console Loader
  *
- * Copyright (C) 2020 iTX Technologies
+ * Copyright (C) 2020-2021 iTX Technologies
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as
@@ -74,29 +74,41 @@ public class Repository {
         }.getType());
     }
 
-    public String getMavenJarUrl(Config.Package pkg) {
-        var base = loader.config.mavenRepo + "/" + transformId(pkg.id) + "/" + pkg.version + "/" + getPackageFromId(pkg.id) + "-" + pkg.version;
-        for (var suf : new String[]{".mirai", "-all", ""}) {
-            var real = base + suf + ".jar";
-            try {
-                if (httpHead(real).statusCode() == 200) {
-                    return real;
+    public String getJarUrl(Config.Package pkg, Package info) {
+        if (info.repo != null && info.repo.containsKey(pkg.version) && !info.repo.get(pkg.version).archive.equals("")) {
+            return info.repo.get(pkg.version).archive;
+        }
+        for (var repo : loader.config.mavenRepo) {
+            var base = repo + "/" + transformId(pkg.id) + "/" + pkg.version + "/"
+                    + getPackageFromId(pkg.id) + "-" + pkg.version;
+            for (var suf : new String[]{".zip", ".mirai.jar", "-all.jar", ".jar"}) {
+                var real = base + suf;
+                try {
+                    if (httpHead(real).statusCode() == 200) {
+                        return real;
+                    }
+                } catch (Exception e) {
+                    loader.logger.logException(e);
                 }
-            } catch (Exception e) {
-                loader.logger.logException(e);
             }
         }
         return "";
     }
 
-    public String getMetadataUrl(Config.Package pkg) {
-        var url = loader.config.mavenRepo + "/" + transformId(pkg.id) + "/" + pkg.version + "/" + getPackageFromId(pkg.id) + "-" + pkg.version + ".mirai.metadata";
-        try {
-            if (httpHead(url).statusCode() == 200) {
-                return url;
+    public String getMetadataUrl(Config.Package pkg, Package info) {
+        if (info.repo != null && info.repo.containsKey(pkg.version) && !info.repo.get(pkg.version).metadata.equals("")) {
+            return info.repo.get(pkg.version).metadata;
+        }
+        for (var repo : loader.config.mavenRepo) {
+            var url = repo + "/" + transformId(pkg.id) + "/" + pkg.version + "/"
+                    + getPackageFromId(pkg.id) + "-" + pkg.version + ".mirai.metadata";
+            try {
+                if (httpHead(url).statusCode() == 200) {
+                    return url;
+                }
+            } catch (Exception e) {
+                loader.logger.logException(e);
             }
-        } catch (Exception e) {
-            loader.logger.logException(e);
         }
         return "";
     }
@@ -130,7 +142,15 @@ public class Repository {
     }
 
     public static class Package {
+        public String announcement;
+        public String type;
         public Map<String, ArrayList<String>> channels;
+        public Map<String, RepoInfo> repo;
+    }
+
+    public static class RepoInfo {
+        public String archive;
+        public String metadata;
     }
 
     public static class Metadata {

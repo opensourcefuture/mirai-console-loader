@@ -2,7 +2,7 @@
  *
  * Mirai Console Loader
  *
- * Copyright (C) 2020 iTX Technologies
+ * Copyright (C) 2020-2021 iTX Technologies
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as
@@ -31,6 +31,7 @@ importPackage(org.apache.commons.cli);
 
 loader.options.addOption(Option.builder("u").desc("Disable auto update").longOpt("disable-update").build());
 loader.options.addOption(Option.builder("x").desc("Force download specified version").longOpt("force-version").build());
+loader.options.addOption(Option.builder("q").desc("Remove old plugin and mirai files").longOpt("remove-old").build());
 
 phase.load = () => {
     let packages = loader.config.packages;
@@ -39,18 +40,12 @@ phase.load = () => {
     }
 };
 
-function checkLocalFile(pack) {
-    let dir = new File(pack.type);
-    dir.mkdirs();
-    return Utility.check(new File(dir, pack.getBasename() + ".jar"), new File(dir, pack.getBasename() + ".sha1"));
-}
-
 function check(pack) {
     logger.info("Verifying \"" + pack.id + "\" version " + pack.version);
     let update = loader.cli.hasOption("u");
     let force = loader.cli.hasOption("x");
     let down = false;
-    if (!checkLocalFile(pack)) {
+    if (!Utility.checkLocalFile(pack)) {
         logger.info("\"" + pack.id + ":" + pack.version + "\" is corrupted. Start downloading...");
         down = true;
     }
@@ -61,31 +56,44 @@ function check(pack) {
         let target = info.channels[pack.channel];
         let ver = target[target.size() - 1];
         if ((!update && !pack.version.equals(ver)) || (update && !target.contains(pack.version) && !force)) {
-            if (pack.type.equals(Config.Package.TYPE_PLUGIN)) {
+            if (loader.cli.hasOption("q")) {
                 let dir = new File(pack.type);
-                new File(dir, pack.getBasename() + ".jar").renameTo(new File(dir, pack.getBasename() + ".jar.bak"));
+                deleteFile(dir, pack.getBasename() + ".jar");
+                deleteFile(dir, pack.getBasename() + ".sha1");
+                deleteFile(dir, pack.getBasename() + ".metadata");
+            } else if (pack.type.equals(Config.Package.TYPE_PLUGIN)) {
+                let dir = new File(pack.type);
+                pack.getJarFile().renameTo(new File(dir, pack.getBasename() + ".jar.bak"));
             }
             pack.version = ver;
             down = true;
         }
         if (down) {
-            downloadFile(pack);
-            if (!checkLocalFile(pack)) {
+            downloadFile(pack, info);
+            if (!Utility.checkLocalFile(pack)) {
                 logger.warning("The local file \"" + pack.id + "\" is still corrupted, please check the network.");
             }
         }
     }
+    loader.saveConfig();
 }
 
-function downloadFile(pack) {
+function deleteFile(dir, file) {
+    let f = new File(dir, file);
+    if (f.exists() && f.delete()) {
+        logger.info("File \"" + f.getName() + "\" has been deleted.");
+    }
+}
+
+function downloadFile(pack, info) {
     let dir = new File(pack.type);
     dir.mkdirs();
     let ver = pack.version;
-    let jarUrl = loader.repo.getMavenJarUrl(pack);
+    let jarUrl = loader.repo.getJarUrl(pack, info);
     if (!jarUrl.equals("")) {
         down(jarUrl, new File(dir, pack.getName() + "-" + ver + ".jar"));
         down(jarUrl + ".sha1", new File(dir, pack.getName() + "-" + ver + ".sha1"));
-        let metadata = loader.repo.getMetadataUrl(pack);
+        let metadata = loader.repo.getMetadataUrl(pack, info);
         if (!metadata.equals("")) {
             down(metadata, new File(dir, pack.getName() + "-" + ver + ".metadata"));
         }
@@ -130,9 +138,9 @@ function down(url, file) {
         var cur = Utility.humanReadableFileSize(current);
 
         let line = " Downloading " + name + " " + buildDownloadBar(total, current) + " " + (alignRight(cur, ttl) + " / " + ttl) + " (" + (Math.floor(current * 1000 / total) / 10) + "%)" + "   \r";
-        System.out.print(line);
+        logger.print(line);
         size = line.length
     });
-    System.out.print(emptyString.substr(0, size) + '\r');
-    System.out.println(" Downloading " + name + " " + buildDownloadBar(1, 1) + " " + ttl);
+    logger.print(emptyString.substr(0, size) + '\r');
+    logger.println(" Downloading " + name + " " + buildDownloadBar(1, 1) + " " + ttl);
 }

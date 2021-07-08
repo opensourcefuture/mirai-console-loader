@@ -1,5 +1,7 @@
 package org.itxtech.mcl.impl;
 
+import org.fusesource.jansi.Ansi;
+import org.fusesource.jansi.AnsiConsole;
 import org.itxtech.mcl.component.Logger;
 
 import java.io.PrintWriter;
@@ -30,8 +32,12 @@ import java.util.Date;
  * @website https://github.com/iTXTech/mirai-console-loader
  *
  */
-public class DefaultLogger implements Logger {
+public class AnsiLogger implements Logger {
     private int logLevel = LOG_DEBUG;
+
+    public AnsiLogger(){
+        AnsiConsole.systemInstall();
+    }
 
     @Override
     public void setLogLevel(int logLevel) {
@@ -43,27 +49,33 @@ public class DefaultLogger implements Logger {
         if (level < logLevel) {
             return;
         }
+        Ansi.Color color;
+        String prefix;
         var date = new SimpleDateFormat("HH:mm:ss").format(new Date());
-        var prefix = "INFO";
         switch (level) {
             case LOG_DEBUG:
+                color = Ansi.Color.WHITE;
                 prefix = "DEBUG";
                 break;
-            case LOG_INFO:
-                prefix = "INFO";
-                break;
             case LOG_WARNING:
+                color = Ansi.Color.YELLOW;
                 prefix = "WARNING";
                 break;
             case LOG_ERROR:
+                color = Ansi.Color.RED;
                 prefix = "ERROR";
+                break;
+            case LOG_INFO:
+            default:
+                color = Ansi.Color.GREEN;
+                prefix = "INFO";
                 break;
         }
         var log = " " + date + " [" + prefix + "] " + info;
         if (level == LOG_ERROR) {
-            System.err.println(log);
+            System.err.println(Ansi.ansi().fg(color).a(log).fg(Ansi.Color.DEFAULT));
         } else {
-            System.out.println(log);
+            System.out.println(Ansi.ansi().fg(color).a(log).fg(Ansi.Color.DEFAULT));
         }
     }
 

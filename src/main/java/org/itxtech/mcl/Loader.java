@@ -5,19 +5,21 @@ import org.itxtech.mcl.component.Config;
 import org.itxtech.mcl.component.Downloader;
 import org.itxtech.mcl.component.Logger;
 import org.itxtech.mcl.component.Repository;
+import org.itxtech.mcl.impl.AnsiLogger;
 import org.itxtech.mcl.impl.DefaultDownloader;
 import org.itxtech.mcl.impl.DefaultLogger;
 import org.itxtech.mcl.script.ScriptManager;
 
 import java.io.File;
 import java.net.InetSocketAddress;
+import java.util.jar.JarFile;
 import java.util.jar.Manifest;
 
 /*
  *
  * Mirai Console Loader
  *
- * Copyright (C) 2020 iTX Technologies
+ * Copyright (C) 2020-2021 iTX Technologies
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as
@@ -37,6 +39,12 @@ import java.util.jar.Manifest;
  *
  */
 public class Loader {
+    private static Loader instance;
+
+    public static Loader getInstance() {
+        return instance;
+    }
+
     public Downloader downloader;
     public Logger logger = new DefaultLogger();
     public File configFile = new File("config.json");
@@ -46,10 +54,15 @@ public class Loader {
     public Options options = new Options();
     public CommandLine cli;
 
+    public Loader() {
+        instance = this;
+    }
+
     public static void main(String[] args) {
         var loader = new Loader();
         try {
             loader.loadConfig();
+            loader.detectLogger();
             loader.start(args);
         } catch (Exception e) {
             loader.logger.logException(e);
@@ -73,8 +86,23 @@ public class Loader {
         }
     }
 
+    public void detectLogger() {
+        try {
+            for (var pkg : config.packages) {
+                if (pkg.id.equals("net.mamoe:mirai-console-terminal") && Utility.checkLocalFile(pkg)) {
+                    Agent.appendJarFile(new JarFile(pkg.getJarFile()));
+                    logger = new AnsiLogger();
+                    logger.setLogLevel(config.logLevel);
+                }
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
     public void loadConfig() {
         config = Config.load(configFile);
+        logger.setLogLevel(config.logLevel);
     }
 
     public InetSocketAddress getProxy() {
@@ -109,7 +137,7 @@ public class Loader {
      * 启动 Mirai Console Loader，并加载脚本
      */
     public void start(String[] args) throws Exception {
-        logger.info("Mirai Console Loader version " + getVersion());
+        logger.info("iTXTech Mirai Console Loader version " + getVersion());
         logger.info("https://github.com/iTXTech/mirai-console-loader");
         logger.info("This program is licensed under GNU AGPL v3");
 

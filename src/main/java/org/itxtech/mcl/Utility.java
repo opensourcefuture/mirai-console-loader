@@ -1,23 +1,22 @@
 package org.itxtech.mcl;
 
+import org.itxtech.mcl.component.Config;
 import org.mozilla.javascript.NativeArray;
 
 import java.io.File;
 import java.io.FileInputStream;
 import java.math.BigInteger;
-import java.net.URL;
-import java.net.URLClassLoader;
 import java.nio.file.Files;
 import java.security.MessageDigest;
 import java.text.StringCharacterIterator;
-import java.util.ArrayList;
 import java.util.List;
+import java.util.jar.JarFile;
 
 /*
  *
  * Mirai Console Loader
  *
- * Copyright (C) 2020 iTX Technologies
+ * Copyright (C) 2020-2021 iTX Technologies
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as
@@ -64,15 +63,23 @@ public class Utility {
         return fileSha1(baseFile).equals(checksum);
     }
 
+    public static boolean checkLocalFile(Config.Package pkg) throws Exception {
+        var dir = new File(pkg.type);
+        dir.mkdirs();
+        return Utility.check(pkg.getJarFile(), new File(dir, pkg.getBasename() + ".sha1"));
+    }
+
     public static void bootMirai(NativeArray files, String entry, String args) throws Exception {
-        var list = new ArrayList<URL>();
+        var f = new StringBuilder();
         for (var file : files) {
             if (file instanceof File) {
-                list.add(((File) file).toURI().toURL());
+                Agent.appendJarFile(new JarFile((File) file));
+                f.append(((File) file).getName()).append(", ");
             }
         }
-        var loader = new URLClassLoader(list.toArray(new URL[0]));
-        var method = loader.loadClass(entry).getMethod("main", String[].class);
+        f.delete(f.length() - 2, f.length());
+        Loader.getInstance().logger.debug("Boot Mirai Files: " + f + "; Args: \"" + args + "\"");
+        var method = Utility.class.getClassLoader().loadClass(entry).getMethod("main", String[].class);
         method.invoke(null, (Object) (args.trim().equals("") ? new String[0] : args.split(" ")));
     }
 
